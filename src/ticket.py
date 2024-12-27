@@ -2,6 +2,7 @@ import time
 
 import discord
 from discord import Embed
+from discord.ui import Button, View
 from discord.ext.commands.context import Context
 from discord.ui import Select, View
 from discord.ext.commands import Bot
@@ -30,25 +31,33 @@ class Ticket:
                                      description='Reportar um problema que você percebeu.'),
                 discord.SelectOption(label='Outros',
                                      emoji='📁',
-                                     description='Outros motivos')
+                                     description='Outros motivos'),
+                discord.SelectOption(label='Cancelar',
+                                    emoji='❌',
+                                    description='Cancelar Ticket')
             ]
         )
         view = View()
         view.add_item(select_reason)
         select_reason.callback = self.my_callback
         select_embed = Embed(
-            title='Criar Embed',
-            description='Escolha a categoria do embed que deseja criar',
+            title='Ticket',
+            description='Escolha a categoria do ticket que deseja criar',
             color=0x00FF00
         )
         await self.ctx.message.author.send(embed=select_embed, view=view)
 
     async def my_callback(self, interaction):
         if interaction.data['custom_id'] == 'select_reason':
-            self.answers['reason'] = interaction.data['values'][0]
-            await interaction.message.delete()
-            await self.ctx.message.author.send(f'Você escolheu {self.answers["reason"]}')
-            await self.ask_situation()
+            self.answers['Razão'] = interaction.data['values'][0]
+            if self.answers["Razão"] == "Cancelar":
+                del users[self.ctx.message.author.id]
+                await interaction.message.delete()
+                await self.ctx.message.author.send('Ticket cancelado!')
+            else:
+                await interaction.message.delete()
+                await self.ctx.message.author.send(f'Você escolheu **{self.answers["Razão"]}**')
+                await self.ask_situation()
 
     async def ask_situation(self):
         await self.ctx.message.author.send('Descreva a situação: \n(Caso seja um bug, descreva como reproduzir)')
@@ -56,7 +65,7 @@ class Ticket:
         if answer.content == 'cancelar':
             await self.cancel_ticket()
         if answer.content:
-            self.answers['situation'] = answer.content
+            self.answers['Situação'] = answer.content
         await self.ask_proofs()
 
     async def ask_proofs(self):
@@ -64,15 +73,15 @@ class Ticket:
         answer = await self.bot.wait_for('message', check=lambda message: message.author == self.ctx.author)
         if answer.content == 'cancelar':
             await self.cancel_ticket()
-        self.answers['evidence'] = {}
+        self.answers['Evidencias'] = {}
         if answer.attachments:
-            self.answers['evidence']['attachs'] = []
+            self.answers['Evidencias']['attachs'] = []
             for attachment in answer.attachments:
-                self.answers['evidence']['attachs'].append(attachment.url)
-        if answer.content:
-            self.answers['evidence']['content'] = answer.content
+                self.answers['Evidencias']['attachs'].append(attachment.url)
+        if answer.content or not answer.content :
+            self.answers['Evidencias']['content'] = answer.content
 
-        await self.create_channel()
+        await self.create_ticket_channel()
 
     async def cancel_ticket(self):
         await self.ctx.message.author.send('Ticket cancelado!')
@@ -80,10 +89,10 @@ class Ticket:
         logging.info(f'Mensagem de {self.ctx.message.author.name} deletada.')
         await self.ctx.message.delete()
 
-    async def create_channel(self):
+    async def create_ticket_channel(self):
 
         self.channel = await self.ctx.guild.create_text_channel(
-            name=f"bug-{self.ctx.message.author.name}",
+            name=f"ticket-{self.ctx.message.author.name}",
             category=self.ctx.guild.get_channel(1187482572146606150)
         )
         logging.info(f"Canal {self.channel.name} criado com sucesso para {self.ctx.author.name}!")
@@ -92,7 +101,7 @@ class Ticket:
     async def finish_ticket(self):
         embed = discord.Embed(title="Ticket", description=f"Ticket de <@{self.ctx.author.id}>", color=0x71368A)
         for question, answer in self.answers.items():
-            if question == 'evidence':
+            if question == 'Evidencias':
                 embed.add_field(name=question, value=self.answers[question]['content'], inline=False)
                 if self.answers[question].get('attachs'):
                     for attach in self.answers[question]['attachs']:
@@ -101,12 +110,14 @@ class Ticket:
                 embed.add_field(name=question, value=answer, inline=False)
         embed.set_thumbnail(url=self.ctx.author.avatar)
         created = self.ctx.message.created_at
-        embed.set_footer(text=f"Criado em {created.date()} - {created.hour}:{created.minute}:{created.second} ")
-        await self.channel.send(embed=embed)
+        embed.set_footer(text=f"Criado em {created.date()} - {created.hour-3}:{created.minute}:{created.second} ")
+        button = Button(label="Fechar Ticket", style=discord.ButtonStyle.danger)
+        view = View()
+        view.add_item(button)
+        await self.channel.send(f'{self.ctx.author.mention}, Aguarde o suporte entrar em contato !',embed=embed, view=view)
         logging.info(f"Ticket de {self.ctx.author.name} criado com sucesso!")
         await self.ctx.message.author.send(f"Ticket criado com sucesso! {self.channel.mention}")
         del users[self.ctx.message.author.id]
-
 
 async def new_ticket(ctx: Context, bot: Bot):
     if str(ctx.channel.id) in '1187063751564873819':

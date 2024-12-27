@@ -3,12 +3,14 @@ import logging
 import os
 
 import discord
+from discord.ui import Button, View
 from aiohttp import web
 from aiohttp.web_request import Request
 from discord.ext import commands
 from discord.ext.commands import CommandNotFound
 from discord.ext.commands.context import Context
 
+from src.clear import clear
 from src.embed import EmbedMessage
 from src.ticket import new_ticket
 
@@ -73,15 +75,10 @@ async def start_app():
         await new_ticket(ctx=ctx, bot=bot)
 
     @bot.command(name='clear')
-    async def clear(ctx: Context, amount: int):
-        if ctx.message.author.guild_permissions.administrator:
-            logging.info(f'User {ctx.message.author.name} cleared {amount} messages.')
-            await ctx.channel.purge(limit=amount)
-        else:
-            logging.warning(f'User {ctx.message.author.name} tried to clear {amount} messages,'
-                            f' but does not have permission.')
-            await ctx.send('Você não tem permissão para usar este comando.', delete_after=10)
-            await ctx.message.delete()
+    async def clear_chat(ctx: Context):
+        await clear(ctx=ctx)
+
+
 
     @bot.command(name='embed')
     async def embed(ctx: Context):
