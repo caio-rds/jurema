@@ -98,7 +98,7 @@ class EmbedMessage:
             description=self.description,
             color=embed_category[self.category]['color']
         )
-        my_embed.set_thumbnail(url=self.ctx.guild.icon.url)
+        #my_embed.set_thumbnail(url=self.ctx.guild.icon.url)
         my_embed.set_author(name=self.bot.user.name, icon_url=self.bot.user.avatar)
         my_embed.set_footer(
             text=f'Criado em: {self.ctx.message.created_at.date()} -'
